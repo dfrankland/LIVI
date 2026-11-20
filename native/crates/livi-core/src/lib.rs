@@ -176,14 +176,19 @@ pub async fn run(
             helper_named: user_data.join("driver/livi-helperd"),
             user_data: user_data.clone(),
         });
+    let managed = livi_base::sys::system_managed();
     if let Some(privileged) = privileged {
-        if system::udev_rule::ensure(&privileged).await {
+        if managed {
+            println!("[core] LIVI_SYSTEM_MANAGED: system integration is left to the host");
+        } else if system::udev_rule::ensure(&privileged).await {
             return Ok(Exit::Restart(None));
         }
-        if system::kiosk_unit::ensure(&privileged).await {
+        if !managed && system::kiosk_unit::ensure(&privileged).await {
             return Ok(Exit::Quit);
         }
-        tokio::spawn(system::gvfs_guard::start(privileged.clone()));
+        if !managed {
+            tokio::spawn(system::gvfs_guard::start(privileged.clone()));
+        }
         if cfg!(target_os = "linux") && system::wifi_ap::wanted(&core.hub.config()) {
             core.ap_ready().send_replace(false);
         }

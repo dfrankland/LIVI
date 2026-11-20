@@ -43,8 +43,8 @@ pub fn systemctl() -> String {
     ]
     .into_iter()
     .find(|p| Path::new(p).exists())
-    .unwrap_or("/usr/bin/systemctl")
-    .to_string()
+    .map(str::to_string)
+    .unwrap_or_else(|| livi_base::sys::tool("systemctl"))
 }
 
 fn stamp(content: &str) -> String {

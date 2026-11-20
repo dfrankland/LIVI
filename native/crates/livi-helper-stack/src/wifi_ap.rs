@@ -170,6 +170,7 @@ fn nm_installed() -> bool {
     ["/usr/bin/nmcli", "/bin/nmcli", "/usr/local/bin/nmcli"]
         .iter()
         .any(|p| std::path::Path::new(p).exists())
+        || livi_base::sys::tool("nmcli").starts_with('/')
 }
 
 fn firewalld_open(iface: &str) {

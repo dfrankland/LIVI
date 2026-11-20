@@ -76,6 +76,9 @@ fn render(p: &Privileged) -> Option<Unit> {
 }
 
 async fn needs_install(p: &Privileged, u: &Unit) -> bool {
+    if livi_base::sys::system_managed() {
+        return false;
+    }
     let unit_current = std::fs::read_to_string(UNIT_PATH).is_ok_and(|text| text == u.unit);
     let rule_current =
         sudo_grants(&format!("restart {SERVICE}")).await || p.marker_holds(MARKER, &u.rule);

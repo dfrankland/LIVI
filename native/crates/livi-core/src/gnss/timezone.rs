@@ -11,6 +11,17 @@ use crate::system::privileged::sudo;
 
 const ZONEINFO: &str = "/usr/share/zoneinfo";
 
+fn zoneinfo() -> std::path::PathBuf {
+    if let Some(dir) = std::env::var_os("TZDIR").filter(|d| !d.is_empty()) {
+        return dir.into();
+    }
+    ["/usr/share/zoneinfo", "/etc/zoneinfo"]
+        .into_iter()
+        .find(|d| Path::new(d).is_dir())
+        .unwrap_or(ZONEINFO)
+        .into()
+}
+
 static APPLIED: Mutex<Option<String>> = Mutex::new(None);
 static GPS_ZONE: Mutex<Option<String>> = Mutex::new(None);
 
@@ -76,7 +87,7 @@ fn known(zone: &str) -> bool {
             .bytes()
             .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'+' | b'/' | b'-'))
         && !zone.starts_with('/')
-        && Path::new(ZONEINFO).join(zone).is_file()
+        && zoneinfo().join(zone).is_file()
 }
 
 pub async fn apply(zone: String) {
