@@ -96,6 +96,21 @@ impl CompositorHandler for LiviState {
     }
 }
 
+/// Answers a (un)maximize/(un)fullscreen request the compositor does not act
+/// on. xdg-shell wants a configure in reply, but not before the surface's
+/// initial commit: that commit gets the initial configure anyway, and a
+/// configure sent earlier would count as the initial one, so the window would
+/// be classified and sized on its very first commit. waylandsink sends
+/// `unset_fullscreen` right before that commit, and then races its event
+/// thread (applying our size) against its streaming thread (resetting the
+/// window to the video's native size once the first configure arrives), so
+/// the video sometimes ended up unscaled.
+fn answer_state_request(surface: &ToplevelSurface) {
+    if surface.is_initial_configure_sent() {
+        surface.send_configure();
+    }
+}
+
 fn classify_on_initial_commit(state: &mut LiviState, idx: usize) {
     if state.toplevels[idx].kind != Kind::Pending {
         return;
@@ -358,11 +373,11 @@ impl XdgShellHandler for LiviState {
     }
 
     fn maximize_request(&mut self, surface: ToplevelSurface) {
-        surface.send_configure();
+        answer_state_request(&surface);
     }
 
     fn unmaximize_request(&mut self, surface: ToplevelSurface) {
-        surface.send_configure();
+        answer_state_request(&surface);
     }
 
     fn fullscreen_request(
@@ -375,7 +390,7 @@ impl XdgShellHandler for LiviState {
             .iter()
             .position(|t| t.toplevel == surface && t.kind == Kind::Ui)
         else {
-            surface.send_configure();
+            answer_state_request(&surface);
             return;
         };
         let screen_idx = self.toplevels[idx].screen_idx;
@@ -398,7 +413,7 @@ impl XdgShellHandler for LiviState {
             .iter()
             .position(|t| t.toplevel == surface && t.kind == Kind::Ui)
         else {
-            surface.send_configure();
+            answer_state_request(&surface);
             return;
         };
         let screen_idx = self.toplevels[idx].screen_idx;
